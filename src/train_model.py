@@ -140,6 +140,36 @@ def evaluate_model(
     print("\nClassification report:")
     print(classification_report(y, y_pred))
 
+# =================== FEATURE IMPORTANCE ====================== #
+
+def show_feature_importance(model: Pipeline, X_sample: pd.DataFrame, top_n: int = 20) -> None:
+    """
+    Extract and print feature importances (LogReg coefficients)
+    mapped back to real feature names after preprocessing.
+    """
+    print("\n===== Feature Importance =====")
+
+    preprocessor: ColumnTransformer = model.named_steps["preprocessor"]
+    clf: LogisticRegression = model.named_steps["classifier"]
+
+    # Extract feature names
+    numeric_cols = preprocessor.transformers_[0][2]
+    cat_cols = preprocessor.transformers_[1][2]
+
+    onehot = preprocessor.named_transformers_["cat"].named_steps["onehot"]
+    cat_feature_names = onehot.get_feature_names_out(cat_cols)
+
+    feature_names = list(numeric_cols) + list(cat_feature_names)
+    coefs = clf.coef_[0]
+
+    importance = pd.DataFrame({
+        "feature": feature_names,
+        "coef": coefs,
+        "abs_coef": np.abs(coefs)
+    }).sort_values("abs_coef", ascending=False)
+
+    print(f"\nTop {top_n} most influential features:")
+    print(importance.head(top_n).to_string(index=False))
 
 # ======================= MAIN SCRIPT ========================= #
 
@@ -158,6 +188,9 @@ def main() -> None:
     # Evaluate on val and test
     evaluate_model(model, X_val, y_val, split_name="val")
     evaluate_model(model, X_test, y_test, split_name="test")
+        # Show feature importance
+    show_feature_importance(model, X_train)
+
 
     # Save model
     print(f"\nSaving model to {MODEL_PATH}")
